@@ -1,0 +1,1888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Database Manager</title>
+    <!-- Include the external CSS file -->
+    
+    <style>
+        table { 
+            width: 100%; 
+            margin-top: 20px; 
+            border-collapse: collapse; 
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            word-wrap: break-word; /* Enable breaking long words */
+            white-space: normal; /* Allow text to wrap */
+            vertical-align: top; /* Align text to the top of the cell */
+        }
+
+        /* General adjustment to make cells 30% wider */
+        table th, 
+        table td {
+            width: calc(100% / 10 * 1.3); /* Approximate 30% wider based on a 10-column layout */
+        }
+
+        /* Set fixed widths for the first two columns */
+        table th:nth-child(1),
+        table td:nth-child(1) {
+            width: 10%; /* Adjust as needed */
+            min-width: 20px; /* Ensure a minimum width */
+            max-width: 100px; /* Optional: Cap the maximum width */
+            white-space: nowrap; /* Prevent wrapping */
+            overflow: hidden; /* Hide content that overflows */
+            text-overflow: ellipsis; /* Add ellipsis to indicate overflow */
+        }
+
+        table th:nth-child(2),
+        table td:nth-child(2) {
+            width: 10%; /* Adjust as needed */
+            min-width: 20px; /* Ensure a minimum width */
+            max-width: 100px; /* Optional: Cap the maximum width */
+            white-space: nowrap; /* Prevent wrapping */
+            overflow: hidden; /* Hide content that overflows */
+            text-overflow: ellipsis; /* Add ellipsis to indicate overflow */
+        }
+
+        /* Set a specific width for the email column */
+        table th:nth-child(25), /* Assuming email is the third column */
+        table td:nth-child(25) {
+            width: 115%; /* Adjust percentage to control the email column width */
+        }
+
+        /* General table cell styling */
+        /* Status color indicators */
+        tr.status-active td {
+            background-color: #05a405 !important; /* Light green */
+        }
+        
+        tr.status-risk td {
+            background-color: #cd102d !important; /* Light red */
+        }
+
+
+    
+        /* Freeze header row */
+        th {
+            background-color: #f2f2f2;
+            position: sticky;
+            top: 0; /* Freezes the top row */
+            z-index: 2; /* Keeps it above other elements */
+        }
+    
+        /* Freeze first column */
+        td:first-child, th:first-child {
+            position: sticky;
+            left: 0; /* Freezes the first column */
+            background-color: #f9f9f9; /* Optional: Slightly different color for clarity */
+            z-index: 1; /* Ensures proper layering */
+        }
+
+
+    
+        .form-container { display: none; margin-top: 15px; width: 100%; }
+        .form-table { width: 100%; }
+        .form-table th, .form-table td { padding: 18px; text-align: left; }
+        .form-button-container { margin-top: 10px; text-align: left; }
+        .query-container { display: none; margin-top: 15px; }
+        .query-row { margin-bottom: 10px; }
+        .query-input { margin-left: 10px; }
+        button { padding: 5px 10px; }
+    </style>
+    
+
+    <link rel="stylesheet" href="mytable.css">
+</head>
+<body>
+
+<h2 id="title">Database Manager</h2>
+<!-- Main Container -->
+<div style="display: flex; flex-direction: column; gap: 10px;">
+    <!-- First Row -->
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+        <div id="summary-container" style="display: flex; align-items: center; gap: 20px;">
+            <div id="vcard1-amount" style="font-size: 1em; font-weight: bold;">$0</div>
+            <div id="vcard2-amount" style="font-size: 1em; font-weight: bold;">$0</div>
+            <div id="ip1-amount" style="font-size: 1em; font-weight: bold;">$0</div>
+            <div id="ip-expiring" style="font-size: 1em; font-weight: bold;">0 IPs Expiring In 7 Days</div>
+        </div>
+
+        <!-- Language Selector -->
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <label id="languageLabel" for="languageSelect">Language:</label>
+            <select id="languageSelect" onchange="changeLanguage()">
+                <option value="en">English</option>
+                <option value="zh">中文</option>
+            </select>
+        </div>
+
+        <!-- Dropdown to select the table -->
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <label id="tableLabel" for="tableSelect">Select Table:</label>
+            <select id="tableSelect" onchange="onTableChange()"></select>
+        </div>
+    </div>
+
+    <!-- Second Row: Buttons -->
+    <div style="display: flex; justify-content: flex-start; gap: 10px; margin-top: 10px;">
+        <button id="addButton" onclick="toggleAddForm()">Add New Row</button>
+        <button id="queryButton" onclick="toggleQueryForm()">Query</button>
+        <button id="fetchTabButton" onclick="fetchTable()">Fetch Table</button>
+        <button id="clearTabButton" onclick="clearTable()">Clear Table</button>
+        <button id="loadXlsxButton" style="display: none;" onclick="loadBusinessXlsx()">Load Business XLSX</button>
+        <input type="file" id="fileInput" accept=".xlsx" style="display: none;" onchange="handleFileUpload(event)">
+    </div>
+
+    <!-- Third Row: Additional Buttons -->
+    <div style="display: flex; justify-content: flex-start; gap: 10px; margin-top: 10px;">
+        <button id="addNewIPSButton" onclick="addNewIPs()">Add New IPs</button>
+        <button id="addNewEmailsButton" onclick="addNewEmails()">Add New Emails</button>
+        <button id="addAcctsFromNewIPsButton" style="display: none;" onclick="addAcctsFromNewIps()">Add Accts From New IPs</button>
+        <button id="showPNLButton" style="display: none;"onclick="togglePNLForm()">Show/Hide P&L</button>
+    </div>
+</div>
+
+<!-- Hidden form container for adding a new row -->
+<div id="addForm" class="form-container">
+    <table class="form-table">
+        <thead>
+            <tr id="formHeaders"></tr>
+        </thead>
+        <tbody>
+            <tr id="formFields"></tr>
+        </tbody>
+    </table>
+    <div class="form-button-container">
+        <button id="addRowButton" onclick="addRow()">Add</button>
+    </div>
+</div>
+
+<!-- Query section -->
+<div id="queryForm" class="query-container">
+    <div class="query-row">
+        <label id="filterLabel1" for="queryField1">Filter 1:</label>
+        <select id="queryField1" onchange="updateQueryInput(this, 'queryInput1')"></select>
+        <div id="queryInput1" class="query-input"></div>
+    </div>
+    <div class="query-row">
+        <label id="filterLabel2" for="queryField2">Filter 2:</label>
+        <select id="queryField2" onchange="updateQueryInput(this, 'queryInput2')"></select>
+        <div id="queryInput2" class="query-input"></div>
+    </div>
+    <div class="query-row">
+        <label id="filterLabel3" for="queryField3">Filter 3:</label>
+        <select id="queryField3" onchange="updateQueryInput(this, 'queryInput3')"></select>
+        <div id="queryInput3" class="query-input"></div>
+    </div>
+    <div class="query-row">
+        <label id="filterLabel4" for="queryField4">Filter 4:</label>
+        <select id="queryField4" onchange="updateQueryInput(this, 'queryInput4')"></select>
+        <div id="queryInput4" class="query-input"></div>
+    </div>
+    <div class="form-button-container">
+        <button id="runQueryButton" onclick="submitQuery()">Run Query</button>
+    </div>
+</div>
+
+<!-- Table to display data -->
+<table>
+    <thead>
+        <tr id="tableHeaders"></tr>
+    </thead>
+    <tbody id="dataTable"></tbody>
+</table>
+
+<!-- Table to display data (query results) -->
+<table id="queryResultTable">
+    <thead>
+        <tr id="queryResultHeaders"></tr>
+    </thead>
+    <tbody id="queryResultBody"></tbody>
+</table>
+
+<!-- Save All button -->
+<div style="text-align: left; margin-top: 10px;">
+    <button id="saveAllButton" onclick="saveAllChanges()">Save All</button>
+</div>
+
+<div id="confirmation-popup" style="display: none; position: fixed; top: 30%; left: 40%; width: 300px; background: white; border: 1px solid #000; padding: 20px; z-index: 10;">
+    <p id="confirmation-message"></p>
+    <div id="additional-inputs"></div>
+    <button onclick="cancelAction()">Cancel</button>
+    <button onclick="confirmAction()">OK</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<script>
+// Translation dictionary for English and Chinese
+// Definitions for fields, filters, and status options
+const queryFields = {
+    "accounts": [
+        { field: "date", displayName: "Date", options: ["past 1 day", "past 7 days", "past 30 days", "custom"], dateColumn: "created_on" },
+        { field: "last_name", displayName: "Last Name" },
+        { field: "addr_city", displayName: "Address City" },
+        { field: "status", displayName: "Status", options: ["active", "risk flagged"] }
+    ],
+    "shua_businesses": [
+        { field: "date", displayName: "Date", options: ["past 1 day", "past 7 days", "past 30 days", "custom"], dateColumn: "order_pay_date" },
+        { field: "service1_type", displayName: "Service1 Type", options: ["add cart", "buy only", "rate", "review product", "review store"] },
+        { field: "service2_type", displayName: "Service2 Type", options: ["add cart", "buy only", "rate", "review product", "review store"] },
+        { field: "status", displayName: "Status", options: ["unassigned", "assigned", "in progress", "canceled", "completed"] }
+    ]
+};
+
+
+// Placeholder functions for table and form operations
+const tableFields = {
+    "accounts": ["bot", "first_name", "last_name", "addr_street_line1", "addr_street_line2", "addr_city", "addr_state", "addr_zip", "created_on", "ip", "proxy_host", "proxy_port", "proxy_un", "proxy_pw", "proxy_exp_date", "proxy_provider", "vcard_num", "vcard_exp", "vcard_cvc", "vcard_fund", "vcard_provider", "gift_card_fund", "prime_date", "email", "email_pw", "backup_email", "backup_email_pw", "amz_phone", "amz_phone_provider", "amz_phone_exp_date", "del_date", "status"],
+    "shua_businesses": ["bid", "uid", "mid", "order_asin", "order_search_term", "order_title", "order_price", "order_seller", "order_brand", "order_quantity", "order_variations", "order_follow_price", "order_follow_seller", "order_note", "order_completed", "order_contact", "order_nickname", "order_date", "order_source", "order_pay_amount", "order_pay_date", "order_buy_amount", "order_buy_date", "order_pay_method", "order_pay_currency", "order_pay_to", "order_pay_ref_num", "service1_type", "service1_pay_amount", "service1_pay_date", "service1_pay_method", "service1_pay_currency", "service1_pay_to", "service1_pay_ref_num", "service2_type", "service2_pay_amount", "service2_pay_date", "service2_pay_method", "service2_pay_currency", "service2_pay_to", "service2_pay_ref_num", "last_action_date", "last_action", "last_action_reason", "expected_order_payment", "expected_service1_payment", "expected_service2_payment", "service_discount", "status"],
+    "cards": ["cid", "uid", "card_number", "card_type", "card_expr", "card_cvc", "card_issuer", "card_bank", "card_fund", "default", "create_fee", "x_percent", "issue_date", "last_freeze_date", "last_activation_date", "cancel_date"],
+    "card_transactions": ["ctid", "uid", "amount", "date"],
+    "card_transactions_details": ["ctdid", "ctid", "cid1", "cid2", "bid", "amount1", "amount2", "note", "record_number", "product"],
+    "crypto_transactions0": ["ctid", "fid", "stage", "input_currency", "output_currency", "input_amount", "output_amount", "fees", "exchange_rate", "created_at"],
+    "fundings": ["fid", "cid", "fund_amount", "fund_date", "fund_type", "fund_overhead"],
+    "shua_incomes0": ["iid", "bids", "ctid", "credit_amount", "credit_date", "credit_type", "credit_currency", "credit_from", "credit_to", "credit_track", "credit_for", "credit_note", "credit_category"],
+    "shua_expenses0": ["eid", "bids", "ctid", "debit_amount", "debit_date", "debit_type", "debit_currency", "debit_from", "debit_to", "debit_track", "debit_for", "debit_note", "debit_category"]
+};
+
+// const apiBaseUrl = 'http://192.168.0.16:5000/api';
+const apiBaseUrl = 'http://DESKTOP-DLLV0.local:5000/api';
+const translations = {
+    en: {
+        title: "Database Manager",
+        tableLabel: "Select Table:",
+        addButton: "Add New Row",
+        queryButton: "Query",
+        fetchTabButton: "Fetch Table",
+        clearTabButton: "Clear Table",
+        loadXlsxButton: "Load Business XLSX",
+        saveAllButton: "Save All",
+        addRowButton: "Add",
+        filterLabel1: "Filter 1:",
+        filterLabel2: "Filter 2:",
+        filterLabel3: "Filter 3:",
+        filterLabel4: "Filter 4:",
+        runQueryButton: "Run Query",
+        languageLabel: "Language:",
+        acctTabName: "accounts:",
+        businessTabName: "shua_businesses:",
+        selectAction: "Select",
+        update: "Update",
+        create_card: "Create Card",
+        create_gg_phone: "Create GG Phone",
+        create_amz_phone: "Create AMZ Phone",
+        create_ip: "Create IP",
+        add_card_val: "Add Card Value",
+        cancel_ip: "Cancel IP",
+        cancel_card: "Cancel Card",
+        cancel_gg_phone: "Cancel GG Phone",
+        cancel_amz_phone: "Cancel AMZ Phone",
+        saveAll: "Save All",
+        uid: "uid",
+        bid: "bid",
+        actionColumn: "action",
+        tableOptions: { accounts: "accounts", shua_businesses: "shua_businesses" },
+        dropdownOptions: {
+            proxy_provider: ["kookeey", "Other"],
+            vcard_provider: ["vva", "Other"],
+            amz_phone_provider: ["ziniao", "other"],
+            service1_type: ["Add to Cart", "Purchase Only", "Rate Product", "Review Product"],
+            service2_type: ["Rate Store", "Review Store"],
+            status: ["Active", "risk flagged"],
+            last_action: ["Created", "Updated", "Deleted"],
+            last_action_reason: ["Request", "Error", "User Action"],
+            acct_row_actions: ["Update", "Create Card", "Create GG Phone",  "Create AMZ Phone", "Create IP", "Add Card Value", "Cancel IP", "Cancel Card", "Cancel GG Phone", "Cancel AMZ Phone"],
+            bus_row_actions: ["Cancel", "Update", "Complete"],
+        },
+        filterOptions: {
+            date: "Date",
+            last_name: "Last Name",
+            addr_city: "City",
+            status: "Status",
+            dateOptions: ["Past 1 day", "Past 7 days", "Past 30 days", "Custom"],
+            statusOptions: ["Active", "Risk Flagged"]
+        },
+        locationOptions: {
+            Los_Angeles: "California/Los Angeles",
+            Chicago: "Illinois/Chicago",
+            Atlanta: "Georgia/Atlanta",
+            Phoenix: "Arizona/Phoenix",
+            Waltham: "Massachusetts/Waltham",
+            Minneapolis: "Minnesota/Minneapolis",
+            New_Orleans: "Louisiana/New Orleans",
+            New_York: "New York/New York City",
+            Dallas: "Texas/Dallas",
+            Ashburn: "Virginia/Ashburn",
+            Oak_Hill: "Virginia/Oak Hill",
+            Reston: "Virginia/Reston",
+            Sterling: "Virginia/Sterling",
+            Washington_DC: "Washington D.C.",
+            Seattle: "Washington/Seattle"
+        },
+        colNames: {
+            bot: "bot",
+            first_name: "first name",
+            last_name: "last name",
+            addr_street_line1: "address line 1",
+            addr_street_line2: "address line 2",
+            addr_city: "city",
+            addr_state: "state",
+            addr_zip: "zip code",
+            created_on: "created on",
+            ip: "ip address",
+            proxy_host: "proxy host",
+            proxy_port: "proxy port",
+            proxy_un: "proxy un", 
+            proxy_pw: "proxy pw", 
+            proxy_exp_date: "proxy expr", 
+            proxy_provider: "proxy provider", 
+            vcard_num: "vcard number", 
+            vcard_exp: "vcard exp", 
+            vcard_cvc: "vcard cvc", 
+            vcard_fund: "vcard fund", 
+            vcard_provider: "vcard provider", 
+            gift_card_fund: "gift_card_fund",
+            prime_date: "prime_date",
+            email: "email", 
+            email_pw: "email pw", 
+            backup_email: "backup email", 
+            backup_email_pw: "backup email pw", 
+            amz_phone: "amz phone", 
+            amz_phone_provider: "amz phone provider", 
+            amz_phone_exp_date: "amz phone expr", 
+            del_date: "del date", 
+            status: "status",
+            uid: "uid", 
+            mid: "mid", 
+            order_asin: "order asin",
+            order_search_term: "order search term", 
+            order_title: "order title", 
+            order_price: "order price", 
+            order_seller: "order seller", 
+            order_brand: "order brand", 
+            order_quantity: "order quantity", 
+            order_variations: "order variations", 
+            order_follow_price: "order follow price", 
+            order_follow_seller: "order follow seller", 
+            order_note: "order note", 
+            order_completed: "order completed", 
+            order_contact: "order contact",
+            order_nickname: "order nickname",
+            order_date: "order date",
+            order_source: "order source",
+            order_pay_amount: "order pay amount", 
+            order_pay_date: "order pay date", 
+            order_buy_amount: "order buy amount", 
+            order_buy_date: "order buy date", 
+            order_pay_method: "order pay method", 
+            order_pay_currency: "order pay currency", 
+            order_pay_to: "order pay to", 
+            order_pay_ref_num: "order pay ref", 
+            service1_type: "service1 type", 
+            service1_pay_amount: "service1 pay amount", 
+            service1_pay_date: "service1 pay date", 
+            service1_pay_method: "service1 pay method", 
+            service1_pay_currency: "service1 pay currency", 
+            service1_pay_to: "service1 pay to", 
+            service1_pay_ref_num: "service1 pay ref", 
+            service2_type: "service2 type", 
+            service2_pay_amount: "service2 pay amount", 
+            service2_pay_date: "service2 pay date", 
+            service2_pay_method: "service2 pay method", 
+            service2_pay_currency: "service2 pay currency", 
+            service2_pay_to: "service2 pay to", 
+            service2_pay_ref_num: "service2 pay ref", 
+            last_action_date: "last_action_date", 
+            last_action: "last action", 
+            last_action_reason: "last action reason",
+            expected_order_payment: "expected order payment",
+            expected_service1_payment: "expected service1 payment",
+            expected_service2_payment: "expected service2 payment",
+            service_discount: "service discount",
+            amount: "amount",
+            date: "date",
+            stage: "stage",
+            input_currency: "input_currency",
+            output_currency: "output_currency",
+            input_amount: "input_amount",
+            output_amount: "output_amount",
+            fees: "fees",
+            exchange_rate: "exchange_rate",
+            fund_amount: "fund_amount",
+            fund_date: "fund_date",
+            fund_type: "fund_type",
+            fund_overhead: "fund_overhead",
+            credit_amount: "credit_amount",
+            credit_date: "credit_date",
+            credit_type: "credit_type",
+            credit_currency: "credit_currency",
+            credit_from: "credit_from",
+            credit_to: "credit_to",
+            credit_track: "credit_track",
+            credit_for: "credit_for",
+            credit_note: "credit_note",
+            credit_category: "credit_category",
+            debit_amount: "debit_amount",
+            debit_date: "debit_date",
+            debit_type: "debit_type",
+            debit_currency: "debit_currency",
+            debit_from: "debit_from",
+            debit_to: "debit_to",
+            debit_track: "debit_track",
+            debit_for: "debit_for",
+            debit_note: "debit_note",
+            debit_category: "debit_category",
+            record_number: "record_number",
+            product: "product",
+            note: "note"
+            // Add translations for all columns...
+        }
+    },
+    zh: {
+        title: "数据库管理",
+        tableLabel: "选择表:",
+        addButton: "添加新行",
+        queryButton: "查询",
+        fetchTabButton: "读取列表",
+        clearTabButton: "清空列表",
+        loadXlsxButton: "读取订单XLSX表格",
+        saveAllButton: "全部保存",
+        addRowButton: "添加",
+        filterLabel1: "筛选 1:",
+        filterLabel2: "筛选 2:",
+        filterLabel3: "筛选 3:",
+        filterLabel4: "筛选 4:",
+        runQueryButton: "运行查询",
+        languageLabel: "语言:",
+        acctTabName: "账号:",
+        businessTabName: "订单:",
+        selectAction: "选择",
+        update: "更新",
+        create_card: "创建信卡",
+        create_gg_phone: "创建谷歌收码",
+        create_amz_phone: "创建亚麻收码",
+        create_ip: "创建IP",
+        add_card_val: "添加信卡余额",
+        cancel_ip: "取消IP",
+        cancel_card: "取消信卡",
+        cancel_gg_phone: "取消谷歌收码",
+        cancel_amz_phone: "取消亚麻收码",
+        saveAll: "全部保存",
+        uid: "账号ID",
+        bid: "订单ID",
+        actionColumn: "动作",
+        tableOptions: { accounts: "账户", shua_businesses: "订单" },
+        dropdownOptions: {
+            proxy_provider: ["kookeey", "其他"],
+            amz_phone_provider: ["紫鸟", "其他"],
+            vcard_provider: ["vva", "其他"],
+            service1_type: ["加购物车", "购买免评", "点星", "好评"],
+            service2_type: ["店铺点星", "店铺好评"],
+            status: ["活跃", "被风控"],
+            last_action: ["创建", "更新", "删除"],
+            last_action_reason: ["请求", "错误", "用户操作"],
+            acct_row_actions: ["更新", "创建信卡", "创建谷歌收码", "创建亚麻收码", "创建IP", "添加信卡余额", "取消IP", "取消信卡", "取消谷歌收码", "取消亚麻收码"],
+            bus_row_actions: ["取消", "更新", "完成"],
+            
+        },
+        filterOptions: {
+            date: "按日期",
+            last_name: "按姓",
+            addr_city: "按城市",
+            status: "按状态",
+            dateOptions: ["过去1天", "过去7天", "过去30天", "自定义"],
+            statusOptions: ["正常", "被风控"]
+        },
+        locationOptions: {
+            Los_Angeles: "加利福尼亚/洛杉矶",
+            Chicago: "伊利诺伊/芝加哥",
+            Atlanta: "乔治亚/亚特兰大",
+            Phoenix: "亚利桑那/凤凰城",
+            Waltham: "马萨诸塞/沃尔瑟姆",
+            Minneapolis: "明尼苏达/明尼阿波利斯",
+            New_Orleans: "路易斯安那/新奥尔良",
+            New_York: "纽约/纽约市",
+            Dallas: "德克萨斯/达拉斯",
+            Ashburn: "弗吉尼亚/阿什伯恩",
+            Oak_Hill: "弗吉尼亚/橡山",
+            Reston: "弗吉尼亚/雷斯顿",
+            Sterling: "弗吉尼亚/斯特林",
+            Washington_DC: "华盛顿特区",
+            Seattle: "华盛顿/西雅图"
+        },
+        colNames: {
+            bot: "机器人id",
+            first_name: "名",
+            last_name: "姓",
+            addr_street_line1: "地址第一行",
+            addr_street_line2: "地址第二行",
+            addr_city: "城市",
+            addr_state: "州",
+            addr_zip: "邮编",
+            created_on: "创建日期",
+            ip: "ip 地址",
+            proxy_host: "代理机器名",
+            proxy_port: "代理机器端口",
+            proxy_un: "代理用户名", 
+            proxy_pw: "代理密码", 
+            proxy_exp_date: "代理到期日", 
+            proxy_provider: "代理服务商", 
+            vcard_num: "信卡号", 
+            vcard_exp: "信卡过期日", 
+            vcard_cvc: "信卡cvc码",
+            vcard_fund: "信卡余额", 
+            vcard_provider: "信卡供应商", 
+            gift_card_fund: "礼品卡余额",
+            prime_date: "会员日期",
+            email: "邮箱", 
+            email_pw: "邮箱密码", 
+            backup_email: "备用邮箱", 
+            backup_email_pw: "备用邮箱密码", 
+            amz_phone: "亚麻收码号", 
+            amz_phone_provider: "亚麻收码号供应商", 
+            amz_phone_exp_date: "亚麻收码号到期日", 
+            del_date: "删除日期", 
+            status: "状态",
+            uid: "买家id", 
+            mid: "任务id", 
+            iid: "收入id",
+            eid: "开销id",
+            cid: "卡id",
+            fid: "充值id",
+            ctid: "卡消费id",
+            ctdid: "卡消费详情id",
+            bid: "订单id",
+            cryptid: "加密币交易id",
+            order_asin: "货品asin号", 
+            order_search_term: "搜索词", 
+            order_title: "标题", 
+            order_price: "货品价格", 
+            order_seller: "卖家", 
+            order_brand: "品牌", 
+            order_quantity: "数量", 
+            order_variations: "变体", 
+            order_follow_price: "跟卖价格", 
+            order_follow_seller: "跟卖卖家", 
+            order_note: "备注", 
+            order_completed: "订单完成", 
+            order_contact: "联系人",
+            order_nickname: "客户昵称",
+            order_date: "订单日期",
+            order_source: "订单来源",
+            order_pay_amount: "货款价格", 
+            order_pay_date: "货款支付日期", 
+            order_buy_amount: "实际买货价格", 
+            order_buy_date: "实际买货日期", 
+            order_pay_method: "货款支付方法", 
+            order_pay_currency: "货款支付货币", 
+            order_pay_to: "货款收款方", 
+            order_pay_ref_num: "货款支付流水", 
+            service1_type: "服务1类型", 
+            service1_pay_amount: "服务1价格", 
+            service1_pay_date: "服务1付款日期", 
+            service1_pay_method: "服务1支付方法", 
+            service1_pay_currency: "服务1支付货币", 
+            service1_pay_to: "服务1收款方", 
+            service1_pay_ref_num: "服务1支付流水", 
+            service2_type: "服务2类型", 
+            service2_pay_amount: "服务2价格", 
+            service2_pay_date: "服务2付款日期", 
+            service2_pay_method: "服务2支付方法", 
+            service2_pay_currency: "服务2支付货币", 
+            service2_pay_to: "服务2收款方", 
+            service2_pay_ref_num: "服务2支付流水", 
+            last_action_date: "上一个动作日期", 
+            last_action: "上一个动作", 
+            last_action_reason: "上一个动作原因",
+            expected_order_payment: "预计产品付款",
+            expected_service1_payment: "预计服务1付款",
+            expected_service2_payment: "预计服务2付款",
+            service_discount: "服务折扣",
+            amount: "金额",
+            date: "日期",
+            stage: "阶段",
+            input_currency: "输入货币",
+            output_currency: "输出货币",
+            input_amount: "输入金额",
+            output_amount: "输出金额",
+            fees: "费用",
+            exchange_rate: "汇率",
+            fund_amount: "充值金额",
+            fund_date: "充值日期",
+            fund_type: "充值类型",
+            fund_overhead: "充值费用",
+            credit_amount: "收入金额",
+            credit_date: "收入日期",
+            credit_type: "收入类型",
+            credit_currency: "收入货币",
+            credit_from: "收入来源",
+            credit_to: "收入目标",
+            credit_track: "收入追踪",
+            credit_for: "收入项目",
+            credit_note: "收入备注",
+            credit_category: "收入类别",
+            debit_amount: "开销金额",
+            debit_date: "开销日期",
+            debit_type: "开销类型",
+            debit_currency: "开销货币",
+            debit_from: "开销来源",
+            debit_to: "开销目标",
+            debit_track: "开销追踪",
+            debit_for: "开销项目",
+            debit_note: "开销备注",
+            debit_category: "开销类别",
+            record_number: "记录编号",
+            product: "产品",
+            note: "备注"
+            // Add translations for all columns...
+        }
+    }
+};
+
+
+const reverseTranslations = {
+    zh: {
+        "账户": "accounts",
+        "订单": "shua_businesses",
+        "紫鸟": "ziniao",
+        "kookeey": "kookeey",
+        "vva": "vva",
+        "其他": "Other",
+        "加购物车": "Add to Cart",
+        "购买免评": "Purchase",
+        "好评": "Review Product",
+        "点星": "Rate Product",
+        "店铺好评": "Review Store",
+        "店铺点星": "Rate Store",
+        "活跃": "Active",
+        "非活跃": "Inactive",
+        "待处理": "Pending",
+        "创建": "Created",
+        "更新": "Updated",
+        "删除": "Deleted",
+        "请求": "Request",
+        "错误": "Error",
+        "用户操作": "User Action"
+    }
+};
+
+
+document.addEventListener("DOMContentLoaded", function () {
+    console.log("get table names....");
+    // Fetch table names and populate the dropdown
+    fetch(`${apiBaseUrl}/data/list_tables`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("Failed to fetch table names");
+            }
+            return response.json();
+        })
+        .then(tables => {
+            // Find the dropdown element
+            const tableSelect = document.getElementById("tableSelect");
+
+            // Clear existing options
+            tableSelect.innerHTML = "";
+
+            // Populate dropdown with the fetched table names
+            tables.forEach(table => {
+                const option = document.createElement("option");
+                option.value = table;
+                option.textContent = table.charAt(0).toUpperCase() + table.slice(1).toLowerCase(); // Format table names
+                tableSelect.appendChild(option);
+            });
+
+            // Force selection of the first item
+            if (tables.length > 0) {
+                tableSelect.selectedIndex = 0;
+                onTableChange(); // Trigger the onchange event manually if needed
+            }
+        })
+        .catch(error => {
+            console.error("Error fetching table names:", error);
+        });
+});
+
+
+document.addEventListener("change", (event) => {
+    if (event.target.matches(".action-select")) {
+        const rowIndex = event.target.getAttribute("data-row");
+        const action = event.target.value;
+        console.log(`Delegated handleAction triggered for rowIndex: ${rowIndex}, action: ${action}`);
+        handleAction(event.target, rowIndex);
+    }
+});
+
+function translateToEnglish(value, lang) {
+    if (lang === 'zh' && reverseTranslations[lang][value]) {
+        return reverseTranslations[lang][value];
+    }
+    return value;
+}
+
+// Function to change language
+function changeLanguage() {
+    const selectedLang = document.getElementById("languageSelect").value;
+    applyTranslations(selectedLang);
+}
+
+// Function to apply translations
+function applyTranslations(lang) {
+    document.getElementById("title").textContent = translations[lang].title;
+    document.getElementById("tableLabel").textContent = translations[lang].tableLabel;
+    document.getElementById("addButton").textContent = translations[lang].addButton;
+    document.getElementById("queryButton").textContent = translations[lang].queryButton;
+    document.getElementById("fetchTabButton").textContent = translations[lang].fetchTabButton;
+    document.getElementById("clearTabButton").textContent = translations[lang].clearTabButton;
+    document.getElementById("loadXlsxButton").textContent = translations[lang].loadXlsxButton;
+    document.getElementById("addRowButton").textContent = translations[lang].addRowButton;
+    document.getElementById("filterLabel1").textContent = translations[lang].filterLabel1;
+    document.getElementById("filterLabel2").textContent = translations[lang].filterLabel2;
+    document.getElementById("filterLabel3").textContent = translations[lang].filterLabel3;
+    document.getElementById("filterLabel4").textContent = translations[lang].filterLabel4;
+    document.getElementById("runQueryButton").textContent = translations[lang].runQueryButton;
+    document.getElementById("languageLabel").textContent = translations[lang].languageLabel;
+    document.getElementById("saveAllButton").textContent = translations[lang].saveAllButton;
+
+
+    setupQueryFields(); // Update query fields to reflect language change
+    generateFormFields(); // Update column names in the form
+}
+
+let currentActionData = null;
+
+console.log("init....");
+// Initialize the page with English as the default language
+applyTranslations("en");
+
+
+
+function onTableChange() {
+    console.log("Table changed to:", document.getElementById('tableSelect').value);
+    const tableName = document.getElementById('tableSelect').value;
+
+    // Show or hide the "Load Business XLSX" button
+    const loadXlsxButton = document.getElementById('loadXlsxButton');
+    loadXlsxButton.style.display = tableName === "shua_businesses" ? "block" : "none";
+
+    setupQueryFields();
+    generateFormFields();
+    fetchData();  // This will fetch data for either table
+}
+
+function toggleAddForm() {
+    const addForm = document.getElementById('addForm');
+    addForm.style.display = addForm.style.display === 'none' || addForm.style.display === '' ? 'block' : 'none';
+    generateFormFields();
+}
+
+function toggleQueryForm() {
+    const queryForm = document.getElementById('queryForm');
+    queryForm.style.display = queryForm.style.display === 'none' || queryForm.style.display === '' ? 'block' : 'none';
+    setupQueryFields();
+}
+
+function generateFormFields() {
+    
+    const tableName = document.getElementById('tableSelect').value;
+    const lang = document.getElementById("languageSelect").value;
+
+    const fields = tableFields[tableName];
+
+    if (!fields) {
+        console.error(`No fields found for table: ${tableName}`);
+        return;
+    }
+    const formHeaders = document.getElementById('formHeaders');
+    const formFields = document.getElementById('formFields');
+    
+    const missingFields = fields.filter(field => !translations[lang].colNames.hasOwnProperty(field));
+    console.log("Missing fields in colNames:", missingFields);
+
+    // Populate headers and fields with translated column names
+    formHeaders.innerHTML = fields.map(field => `<th>${translations[lang].colNames[field] || field}</th>`).join('');
+    // formFields.innerHTML = fields.map(field => `<td><input type="text" id="input-${field}" /></td>`).join('');
+
+    formFields.innerHTML = fields.map(field => {
+        // Check if the field should use a dropdown menu
+        if (translations[lang].dropdownOptions[field]) {
+            const options = translations[lang].dropdownOptions[field]
+                .map(option => `<option value="${option}">${option}</option>`)
+                .join('');
+            return `<td><select id="input-${field}">${options}</select></td>`;
+        } else {
+            // Default to a text input
+            return `<td><input type="text" id="input-${field}" /></td>`;
+        }
+    }).join('');
+}
+
+// Setup query dropdowns based on selected table
+function setupQueryFields() {
+    // const tableName = document.getElementById('tableSelect').value;
+    const lang = document.getElementById("languageSelect").value;
+    // const fields = queryFields[tableName];
+    const filterOptions = translations[lang].filterOptions;
+
+    // for (let i = 1; i <= 4; i++) {
+    //     const fieldSelect = document.getElementById(`queryField${i}`);
+    //     fieldSelect.innerHTML = fields.map(field => `<option value="${field.field}">${field.displayName}</option>`).join('');
+    //     document.getElementById(`queryInput${i}`).innerHTML = ''; // Clear previous inputs
+    // }
+
+    for (let i = 1; i <= 4; i++) {
+        const fieldSelect = document.getElementById(`queryField${i}`);
+        fieldSelect.innerHTML = `
+            <option value="">-- Select Filter --</option> <!-- Blank item added -->
+            <option value="date">${filterOptions.date}</option>
+            <option value="last_name">${filterOptions.last_name}</option>
+            <option value="addr_city">${filterOptions.addr_city}</option>
+            <option value="status">${filterOptions.status}</option>
+        `;
+        document.getElementById(`queryInput${i}`).innerHTML = ''; // Clear previous inputs
+    }
+}
+
+// Update the query input based on selected filter and language
+function updateQueryInput(selectElem, inputContainerId) {
+    const lang = document.getElementById("languageSelect").value;
+    const selectedField = selectElem.value;
+    const inputContainer = document.getElementById(inputContainerId);
+    const filterOptions = translations[lang].filterOptions;
+
+    inputContainer.innerHTML = ''; // Clear previous input
+
+    if (selectedField === "date") {
+        inputContainer.innerHTML = `
+            <select onchange="handleDateOptionChange(this, '${inputContainerId}')">
+                ${filterOptions.dateOptions.map(option => `<option value="${option}">${option}</option>`).join('')}
+            </select>
+        `;
+    } else if (selectedField === "status") {
+        inputContainer.innerHTML = `
+            <select>
+                ${filterOptions.statusOptions.map(option => `<option value="${option}">${option}</option>`).join('')}
+            </select>
+        `;
+    } else {
+        inputContainer.innerHTML = `<input type="text" placeholder="Enter ${filterOptions[selectedField]}" />`;
+    }
+}
+
+function handleDateOptionChange(selectElem, containerId) {
+    const selectedOption = selectElem.value;
+    const container = document.getElementById(containerId);
+
+    if (selectedOption === 'Custom' || selectedOption === '自定义') {
+        container.innerHTML = `
+            <label>From: <input type="date" id="${containerId}-from"></label>
+            <label>To: <input type="date" id="${containerId}-to"></label>
+        `;
+    }
+}
+
+// Function to prepare and submit query
+async function submitQuery() {
+    const lang = document.getElementById("languageSelect").value;
+    const queryParams = {};
+
+    for (let i = 1; i <= 4; i++) {
+        const field = document.getElementById(`queryField${i}`).value;
+        const inputElem = document.querySelector(`#queryInput${i} select, #queryInput${i} input[type="text"], #queryInput${i} input[type="date"]`);
+        
+        if (field && inputElem) {
+            let value = inputElem.value;
+
+            // Translate the value to English if in Chinese mode
+            value = translateToEnglish(value, lang);
+
+            // Special handling for date range
+            if (field === "date") {
+                const dateOption = translateToEnglish(inputElem.value, lang);
+                if (dateOption === "Custom") {
+                    const fromDate = document.getElementById(`queryInput${i}-from`).value;
+                    const toDate = document.getElementById(`queryInput${i}-to`).value;
+                    if (fromDate && toDate) {
+                        queryParams["startDate"] = fromDate;
+                        queryParams["endDate"] = toDate;
+                    }
+                } else {
+                    const { startDate, endDate } = calculateDateRange(dateOption);
+                    queryParams["startDate"] = startDate;
+                    queryParams["endDate"] = endDate;
+                }
+            } else {
+                queryParams[field] = value;
+            }
+        }
+    }
+
+    console.log("Query parameters:", queryParams);
+    // Here you would make your API call with queryParams
+
+    // API call to fetch query results
+    try {
+        const tableName = document.getElementById('tableSelect').value; // Assuming tableSelect holds the table name
+        const response = await fetch(`${apiBaseUrl}/data/${tableName}?` + new URLSearchParams(queryParams), {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) throw new Error(`Error: ${response.statusText}`);
+
+        const data = await response.json();
+        displayQueryResults(data);  // Display results in the table
+    } catch (error) {
+        console.error('Failed to fetch query results:', error);
+    }
+}
+
+// Function to calculate date range for preset date options
+function calculateDateRange(option) {
+    const today = new Date();
+    let startDate, endDate;
+
+    switch (option) {
+        case "Past 1 day":
+            startDate = new Date(today);
+            startDate.setDate(today.getDate() - 1);
+            break;
+        case "Past 7 days":
+            startDate = new Date(today);
+            startDate.setDate(today.getDate() - 7);
+            break;
+        case "Past 30 days":
+            startDate = new Date(today);
+            startDate.setDate(today.getDate() - 30);
+            break;
+        default:
+            startDate = today;
+            break;
+    }
+    endDate = today;
+
+    // Format dates as "YYYY-MM-DD" for query
+    return {
+        startDate: startDate.toISOString().slice(0, 10),
+        endDate: endDate.toISOString().slice(0, 10)
+    };
+}
+
+
+
+
+
+async function addRow(rowData) {
+    try {
+        const tableName = document.getElementById("tableSelect").value; // Determine the selected table
+        console.log(`Adding new row to ${tableName}`, rowData);
+
+        const result = await addData(tableName, rowData);
+        if (result && result.status === "success") {
+            console.log(`Row added successfully to ${tableName}:`, result);
+            await fetchData(); // Refresh the table data
+        } else {
+            console.error("Failed to add row:", result);
+            alert("Failed to add row. Check logs for details.");
+        }
+    } catch (error) {
+        console.error("Error adding row:", error);
+        alert("Error adding row. Check console for details.");
+    }
+}
+
+
+
+async function fetchTable() {
+    const tableName = document.getElementById('tableSelect').value;
+
+    await fetchData(tableName);
+
+}
+
+function clearTable() {
+    // Get the table body element that contains the query result rows
+    const queryResultBody = document.getElementById('queryResultBody');
+    
+    // Clear all rows by setting innerHTML to an empty string
+    queryResultBody.innerHTML = '';
+
+}
+
+async function fetchData() {
+    console.log("Fetching data for table:", document.getElementById('tableSelect').value);
+    const tableName = document.getElementById('tableSelect').value;
+    try {
+        const response = await fetch(`${apiBaseUrl}/data/${tableName}`);
+        if (!response.ok) throw new Error(`Error: ${response.statusText}`);
+        const data = await response.json();
+        console.log("Data fetched:", data);
+        
+        // Format the data properly for displayQueryResults
+        if (tableName === "shua_businesses") {
+            displayQueryResults({
+                table: data,  // data is already an array of business records
+                acct: { cards: [], ips: [] }  // empty placeholder for business table
+            });
+        } else {
+            console.log("display data:", data)
+            displayQueryResults(data);  // accounts data is already in correct format
+        }
+    } catch (error) {
+        console.error('Failed to fetch data:', error);
+    }
+}
+ 
+
+
+async function addData(tableName, rowData) {
+    try {
+        const response = await fetch(`${apiBaseUrl}/data_add/${tableName}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(rowData),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Error: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        console.log('Row added successfully:', result);
+        alert('Row added successfully');
+        return result;
+    } catch (error) {
+        console.error('Failed to add data:', error);
+    }
+}
+
+
+
+
+
+async function updateData(tableName, id, updatedData) {
+    console.log(`updateData called with:
+        tableName: ${tableName}
+        id: ${id}
+        updatedData:`, updatedData);
+
+    try {
+        const response = await fetch(`${apiBaseUrl}/data_update/${tableName}/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            mode: 'cors',
+            body: JSON.stringify(updatedData),
+        });
+
+        console.log("Server response status:", response.status);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Server error: ${response.status} - ${errorText}`);
+        }
+
+        const result = await response.json();
+        console.log("Server response:", result);
+        return result;
+    } catch (error) {
+        console.error("Error in updateData:", error);
+        throw error;
+    }
+}
+
+
+async function updateDataRows(tableName, updatedData) {
+    try {
+        const response = await fetch(`${apiBaseUrl}/data_bulk_update/${tableName}/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedData)
+        });
+        if (!response.ok) throw new Error(`Error: ${response.statusText}`);
+        const result = await response.json();
+        console.log('Rows updated:', result);
+        alert('Rows updated successfully');
+    } catch (error) {
+        console.error('Failed to update data:', error);
+    }
+}
+
+function epochToDateString(epochSeconds) {
+    const date = new Date(epochSeconds * 1000); // Convert seconds to milliseconds
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-based
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+async function actOnDataRow(tableName,  id, actionInput) {
+    try {
+        const response = await fetch(`${apiBaseUrl}/data_action/${tableName}/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(actionInput)
+        });
+        if (!response.ok) throw new Error(`Error: ${response.statusText}`);
+        const result = await response.json();
+        console.log('Row Data Action Results:', result);
+        alert('Row action completed successfully');
+
+        // no need for any further data conversion since server side has already converted
+
+        return result;
+    } catch (error) {
+        console.error('Failed to update data:', error);
+    }
+}
+
+// Delete an entry from a specified table by ID
+async function deleteData(tableName, id) {
+    try {
+        const response = await fetch(`${apiBaseUrl}/${tableName}/${id}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        if (!response.ok) throw new Error(`Error: ${response.statusText}`);
+        const result = await response.json();
+        console.log('Row deleted:', result);
+        alert('Row deleted successfully');
+    } catch (error) {
+        console.error('Failed to delete data:', error);
+    }
+}
+
+
+function updateTopDisplay(cards, ips) {
+    const card1 = cards[0] || { vendor: "N/A", fund: 0 };
+    const card2 = cards[1] || { vendor: "N/A", fund: 0 };
+    const ipInfo = ips[0] || { vendor: "N/A", fund: 0, n_expiring7: 0 };
+
+    // Ensure fund is a valid number before formatting
+    const card1Fund = isNaN(card1.fund) ? 0 : parseFloat(card1.fund);
+    const card2Fund = isNaN(card2.fund) ? 0 : parseFloat(card2.fund);
+    const ipFund = isNaN(ipInfo.fund) ? 0 : parseFloat(ipInfo.fund);
+
+    // Update card displays
+    document.getElementById("vcard1-amount").textContent = `$${card1Fund.toFixed(2)} (${card1.vendor})`;
+    document.getElementById("vcard2-amount").textContent = `$${card2Fund.toFixed(2)} (${card2.vendor})`;
+
+    // Update IP display
+    document.getElementById("ip1-amount").textContent = `$${ipFund.toFixed(2)} (${ipInfo.vendor})`;
+    document.getElementById("ip-expiring").textContent = `${ipInfo.n_expiring7} IPs expiring in 7 days`;
+}
+
+
+
+
+
+function displayQueryResults(queryResults) {
+    const lang = document.getElementById("languageSelect").value; // Determines the language for column names.
+    const tableName = document.getElementById('tableSelect').value; // Determines which table to render.
+
+    // Extract 'table' key for populating table rows
+    const tableData = tableName === "shua_businesses" ? queryResults.table : queryResults.table; 
+    // COMMENT: The `tableName` condition seems redundant since you're assigning the same value. 
+    // Suggestion: Remove the condition unless more processing is needed later.
+
+    console.log("Table data to display:", tableName, tableData);
+
+    const fields = [...tableFields[tableName]]; // Creates a shallow copy of table fields.
+
+    // Ensure proper ID field is first
+    const idField = tableName === "accounts" ? "uid" : "bid"; 
+    // COMMENT: Ensures that `uid` or `bid` is always the first column.
+
+    if (fields[0] !== idField) {
+        fields.unshift(idField); // Prepends the ID field if it's not already the first.
+    }
+
+    const queryResultHeaders = document.getElementById('queryResultHeaders');
+    const queryResultBody = document.getElementById('queryResultBody');
+
+    // Generate headers dynamically
+    queryResultHeaders.innerHTML = fields.map(field => 
+        `<th>${translations[lang].colNames[field] || field}</th>` // Uses translations for column names.
+    ).join('') + `<th>${translations[lang].actionColumn}</th>`; // Adds the "Action" column.
+
+    // Generate rows with dropdown
+    queryResultBody.innerHTML = tableData.map((row, rowIndex) => {
+        // Log the status and determined class
+        console.log(`Row ${rowIndex}`);
+        const status = row.status?.toLowerCase() || ''; // Handles undefined or missing `status`.
+        const statusClass = status === 'active' ? 'status-active' : 
+                          status === 'risk flagged' ? 'status-risk' : ''; // Assigns CSS class based on status.
+
+        console.log(`Row ${rowIndex} - Status: ${status}, Class: ${statusClass}`);
+
+        // Generate table cells for each field
+        // const cells = fields.map(field => {
+        //     const value = row[field] || ''; // Default to empty string if the value is undefined.
+        //     return `<td><input type="text" value="${value}" data-field="${field}" data-row-index="${rowIndex}"/></td>`;
+        // }).join('');
+
+        const cells = fields.map(field => {
+            const value = row[field] || '';
+            const columnClass = `col-${field}`; // Add class based on field name
+            return `<td class="${columnClass}">
+                        <input type="text" value="${value}" data-field="${field}" data-row-index="${rowIndex}" />
+                    </td>`;
+        }).join('');
+
+        // Generate the action dropdown
+        const actionDropdown = `
+            <td>
+                <select class="action-select" data-row="${rowIndex}" onchange="handleAction(this, ${rowIndex});">
+                    <option value="">-- Select Action --</option>
+                    ${tableName === 'accounts' ? `
+                        <option value="update">Update</option>
+                        <option value="create_card">Create Card</option>
+                        <option value="create_gg_phone">Create GG Phone</option>
+                        <option value="create_amz_phone">Create AMZ Phone</option>
+                        <option value="create_ip">Create IP</option>
+                        <option value="add_card_val">Add Card Value</option>
+                        <option value="cancel_ip">Cancel IP</option>
+                        <option value="cancel_card">Cancel Card</option>
+                        <option value="cancel_gg_phone">Cancel GG Phone</option>
+                        <option value="cancel_amz_phone">Cancel AMZ Phone</option>
+                    ` : `
+                        <option value="update">Update</option>
+                        <option value="cancel">Cancel</option>
+                        <option value="complete">Complete</option>
+                    `}
+                </select>
+            </td>
+        `;
+
+        return `<tr id="row-${rowIndex}" class="${statusClass}">${cells}${actionDropdown}</tr>`;
+    }).join('');
+
+    // Update the top display if table is accounts
+    if (tableName === 'accounts' && queryResults.acct) {
+        updateTopDisplay(queryResults.acct.cards || [], queryResults.acct.ips || []); 
+        // COMMENT: Updates summary display for accounts table. Ensure `updateTopDisplay` is defined.
+    }
+
+    // Log the final HTML for debugging
+    console.log("Generated table HTML:", queryResultBody.innerHTML);
+}
+
+
+
+
+// Reset row to original values
+function resetRow(rowIndex) {
+    const rowInputs = document.querySelectorAll(`#row-${rowIndex} input`);
+    rowInputs.forEach(input => {
+        input.value = input.defaultValue; // Reset value to initial state
+    });
+}
+
+
+
+// Save a single row
+async function saveRow(rowIndex) {
+    console.log("saveRow started for row:", rowIndex);
+    
+    const tableName = document.getElementById('tableSelect').value;
+    const formData = {};
+    
+    // Get all inputs from the specific row
+    const rowInputs = document.querySelectorAll(`#row-${rowIndex} input`);
+    console.log("Found input elements:", rowInputs.length);
+    
+    rowInputs.forEach(input => {
+        const field = input.getAttribute('data-field');
+        let value = input.value;
+
+        // Sanitize numeric fields
+        if (((field === "vcard_fund") || (field === "gift_card_fund")) && value === "") {
+            value = 0.0; // Default empty vcard_fund to 0.0
+        }
+
+        formData[field] = value;
+        console.log(`Field: ${field}, Value: ${value}`);
+    });
+
+    const idField = tableName === "accounts" ? "uid" : "bid";
+    let id = parseInt(formData[idField], 10);
+    
+    // Handle missing or invalid ID for new rows
+    if (isNaN(id) || id <= 0) {
+        console.error("Invalid ID field. Cannot update row.");
+        alert(`Invalid ID field. Cannot update row. Ensure ${idField} is properly populated.`);
+        return;
+    }
+
+    console.log(`Using ${idField} with value:`, id);
+    console.log("Preparing to update data with formData:", formData);
+    
+    try {
+        const result = await updateData(tableName, id, formData);
+        console.log("Update completed, result:", result);
+        
+        await fetchData();
+        return result;
+    } catch (error) {
+        console.error("Error in saveRow:", error);
+        throw error;
+    }
+}
+
+
+
+// Function to save all modified rows
+async function saveAllChanges() {
+    const modifiedRows = [];
+    const tableName = document.getElementById('tableSelect').value;
+
+    document.querySelectorAll('#queryResultBody tr').forEach((row, rowIndex) => {
+        const rowInputs = row.querySelectorAll('input');
+        const rowData = {};
+        
+        rowInputs.forEach(input => {
+            rowData[input.getAttribute('data-field')] = input.value;
+        });
+        
+        modifiedRows.push(rowData);
+    });
+
+    console.log("Saving all modified rows:", modifiedRows);
+    // API call to save all modified rows
+    await updateDataRows(tableName, modifiedRows);
+}
+
+async function updateSummaryValues() {
+    try {
+        // Assuming your API can return these summary values:
+        const response = await fetch(`${apiBaseUrl}/summary`);
+        if (!response.ok) throw new Error(`Error: ${response.statusText}`);
+        const data = await response.json();
+        
+        // Update values in the summary container
+        document.getElementById("vcard1-amount").textContent = `$${data.vcard1}`;
+        document.getElementById("vcard2-amount").textContent = `$${data.vcard2}`;
+        document.getElementById("ip1-amount").textContent = `$${data.ip1}`;
+        document.getElementById("ip-expiring").textContent = `${data.expiringIps} IPs`;
+    } catch (error) {
+        console.error('Failed to fetch summary values:', error);
+    }
+}
+
+
+function cancelAction() {
+    // Hide popup
+    document.getElementById("confirmation-popup").style.display = 'none';
+    currentActionData = null;
+}
+
+async function confirmAction() {
+    const action = currentActionData.action;
+    const rowIndex = currentActionData.rowIndex;
+
+    // Validate additional inputs
+    if (action === 'add_card_val' || action === 'create_card') {
+        const amount = parseFloat(document.getElementById("additional-amount").value);
+        if ((amount > 0) && (amount < 10)) {
+            document.getElementById("amount-warning").style.display = 'block';
+            return; // Do not proceed if validation fails
+        }
+    }
+
+    // Prepare data to send to server
+    const tableName = document.getElementById('tableSelect').value;
+    const rowActionData = {'action': action};
+    const rowData = {};
+    document.querySelectorAll(`#row-${rowIndex} input, #row-${rowIndex} select`).forEach(input => {
+        rowData[input.getAttribute('data-field')] = input.value;
+    });
+
+    // Add additional data for actions like add_fund or create_card
+    if (action === 'add_card_val' || action === 'create_card') {
+        rowData.amount = parseFloat(document.getElementById("additional-amount").value);
+    } else if (action === 'create_ip') {
+        rowData.location = document.getElementById("ip-location").value;
+    }
+
+    // Hide popup
+    document.getElementById("confirmation-popup").style.display = 'none';
+    currentActionData = null;
+
+    // Send API request
+    try {
+        rowActionData['rowData'] = [rowData];
+        console.log('rowData:', JSON.stringify(rowActionData));
+        var actionResult = await actOnDataRow(tableName, rowData.uid, rowActionData);
+        // var actionResult = {
+        //     "rowData": [
+        //         {
+        //             "addr_city": "Oxnard",
+        //             "addr_state": "CA",
+        //             "addr_street_line1": "3900 Bradfield Dr",
+        //             "addr_street_line2": "",
+        //             "addr_zip": "93033",
+        //             "amz_phone": "",
+        //             "amz_phone_exp_date": "",
+        //             "amz_phone_provider": "ziniao",
+        //             "backup_email": "",
+        //             "backup_email_pw": "",
+        //             "bot": "",
+        //             "created_on": "",
+        //             "del_date": "",
+        //             "email": "",
+        //             "email_pw": "",
+        //             "first_name": "",
+        //             "ip": "",
+        //             "last_name": "Navarro",
+        //             "location": "Los_Angeles",
+        //             "null": "create_ip",
+        //             "proxy_exp_date": "2025-01-06",
+        //             "proxy_host": "38.142.79.178",
+        //             "proxy_port": 30673,
+        //             "proxy_provider": "kookeey",
+        //             "proxy_pw": "",
+        //             "proxy_un": "",
+        //             "status": "Active",
+        //             "uid": "44",
+        //             "vcard_cvc": "",
+        //             "vcard_exp": "",
+        //             "vcard_fund": "",
+        //             "vcard_num": "",
+        //             "vcard_provider": "vva"
+        //         }
+        //     ],
+        //     "success": true
+        // }
+
+        // Update row based on response
+        updateRow(rowIndex, actionResult["rowData"][0], action);
+    } catch (error) {
+        console.error(`Failed to execute ${action}:`, error);
+    }
+}
+
+function updateRow(rowIndex, newData, action) {
+    // Update row data with the values returned from the server
+    if (!action.includes('cancel_')) {
+        document.querySelectorAll(`#row-${rowIndex} input, #row-${rowIndex} select`).forEach(input => {
+            const field = input.getAttribute('data-field');
+            // console.log(`Checking field: ${field}, Value in newData: ${newData[field]}`);
+
+            if (newData[field] !== undefined) {
+                input.value = newData[field];
+            }
+        });
+    }
+}
+
+
+
+async function loadBusinessXlsx() {
+    // Trigger the hidden file input
+    document.getElementById('fileInput').click();
+}
+
+let actualFilePath = '';
+
+async function handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Prompt user for the full file path
+    actualFilePath = prompt("Please enter the full file path (or confirm if correct):", actualFilePath || file.name);
+    if (!actualFilePath) {
+        alert("File path is required.");
+        return;
+    }
+
+    try {
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data, { type: "array" });
+
+        // Read the first sheet
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const allRows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+        // Extract row 3 as headers
+        let headers = allRows[2];
+        if (!headers) {
+            alert("Error: Row 3 (headers) is missing.");
+            return;
+        }
+
+        const firstNonEmptyIndex = headers.findIndex(header => header && header.trim());
+        if (firstNonEmptyIndex > 0) {
+            headers = headers.slice(firstNonEmptyIndex);
+        }
+
+        const dataRows = allRows.slice(3);
+        const rows = dataRows.map(row => {
+            const rowObject = {};
+            headers.forEach((header, index) => {
+                if (header) {
+                    rowObject[header] = row[index + firstNonEmptyIndex] || "";
+                }
+            });
+            return rowObject;
+        });
+
+        // Append rows to the BUSINESS table with the actual file path
+        appendRowsToBusinessTable(rows, actualFilePath);
+    } catch (error) {
+        console.error("Failed to load XLSX file:", error);
+        alert("Error loading file. Please try again.");
+    }
+}
+
+function addAcctsFromNewIps() {
+
+}
+
+function togglePNLForm() {
+
+}
+
+async function addNewIPs() {
+    // Create the popup form container
+    const popupForm = document.createElement('div');
+    popupForm.style.position = 'fixed';
+    popupForm.style.top = '30%';
+    popupForm.style.left = '40%';
+    popupForm.style.width = '300px';
+    popupForm.style.padding = '20px';
+    popupForm.style.backgroundColor = 'white';
+    popupForm.style.border = '1px solid black';
+    popupForm.style.zIndex = '1000';
+
+    // Add city-state dropdown
+    const labelCity = document.createElement('label');
+    labelCity.textContent = 'City-State: ';
+    const citySelect = document.createElement('select');
+    // const cityOptions = ["Los Angeles, CA", "New York, NY", "Chicago, IL", "Houston, TX", "Phoenix, AZ"];
+    // cityOptions.forEach(city => {
+    //     const option = document.createElement('option');
+    //     option.value = city;
+    //     option.textContent = city;
+    //     citySelect.appendChild(option);
+    // });
+    const lang = document.getElementById("languageSelect").value;
+    Object.entries(translations[lang].locationOptions).map(([key, value]) => {
+        const option = document.createElement('option');
+        option.value = key; // Use the key as the value
+        option.textContent = value; // Display the formatted text
+        citySelect.appendChild(option);
+    });
+
+    // Add quantity input
+    const labelQty = document.createElement('label');
+    labelQty.textContent = 'Quantity: ';
+    const qtyInput = document.createElement('input');
+    qtyInput.type = 'number';
+    qtyInput.min = '1';
+    qtyInput.value = '1';
+
+    // Add checkbox for adding directly to accounts
+    const addAccountsLabel = document.createElement('label');
+    addAccountsLabel.textContent = 'Add to Accounts Table: ';
+    const addAccountsCheckbox = document.createElement('input');
+    addAccountsCheckbox.type = 'checkbox';
+
+    // Add buttons
+    const okButton = document.createElement('button');
+    okButton.textContent = 'OK';
+    const cancelButton = document.createElement('button');
+    cancelButton.textContent = 'Cancel';
+
+    // Append elements to the popup form
+    popupForm.appendChild(labelCity);
+    popupForm.appendChild(citySelect);
+    popupForm.appendChild(document.createElement('br'));
+    popupForm.appendChild(labelQty);
+    popupForm.appendChild(qtyInput);
+    popupForm.appendChild(document.createElement('br'));
+    popupForm.appendChild(addAccountsLabel);
+    popupForm.appendChild(addAccountsCheckbox);
+    popupForm.appendChild(document.createElement('br'));
+    popupForm.appendChild(okButton);
+    popupForm.appendChild(cancelButton);
+    document.body.appendChild(popupForm);
+
+    // Cancel button action
+    cancelButton.addEventListener('click', () => {
+        document.body.removeChild(popupForm);
+    });
+
+    // OK button action
+    okButton.addEventListener('click', async () => {
+        const cityState = citySelect.value;
+        const quantity = parseInt(qtyInput.value, 10);
+        const addToAccounts = addAccountsCheckbox.checked;
+
+        if (!cityState || isNaN(quantity) || quantity <= 0) {
+            alert('Please provide valid input.');
+            return;
+        }
+
+        // Prepare payload
+        const payload = {
+            city_state: cityState,
+            quantity: quantity,
+            add_new_accounts: addToAccounts
+        };
+
+        try {
+            // Send POST request to the server
+            const response = await fetch(`${apiBaseUrl}/add_ips`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                if (addToAccounts && result.accounts) {
+                    // Add returned rows to accounts table
+                    result.accounts.forEach(account => {
+                        console.log('New account added:', account);
+                        // Assuming `displayAccountRow` is a function to append a row to the accounts table
+                        displayAccountRow(account);
+                    });
+                } else {
+                    alert('New IPs created successfully.');
+                }
+            } else {
+                alert(`Failed to create IPs: ${result.reason || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('Error creating IPs:', error);
+            alert('An error occurred while creating IPs.');
+        } finally {
+            // Remove the popup form
+            document.body.removeChild(popupForm);
+        }
+    });
+}
+
+async function addNewEmails() {
+    // Create file input element
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.txt';
+
+    // Trigger the file selector dialog
+    fileInput.click();
+
+    fileInput.onchange = async (event) => {
+        const file = event.target.files[0];
+        if (!file) {
+            alert("No file selected.");
+            return;
+        }
+
+        try {
+            // Read the file content
+            const fileContent = await file.text();
+
+            // Send the file content to the server
+            const response = await fetch('/api/add_new_emails', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ emailData: fileContent }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+
+            // Handle the server response
+            if (result.success) {
+                alert("Emails added successfully.");
+                console.log("Updated accounts data:", result.updatedAccounts);
+
+                // Check if the accounts table is currently displayed
+                const tableName = document.getElementById('tableSelect')?.value;
+                if (tableName === 'accounts') {
+                    updateDisplayedTable(result.updatedAccounts);
+                }
+            } else {
+                alert(`Failed to add emails: ${result.reason}`);
+            }
+        } catch (error) {
+            console.error("Error processing emails:", error);
+            alert("An error occurred while processing emails. Check console for details.");
+        }
+    };
+}
+
+// Function to update the displayed table
+function updateDisplayedTable(newRows) {
+    const tableBody = document.getElementById('dataTable'); // Replace with your table body ID
+    if (!tableBody) {
+        console.warn("Table body element not found.");
+        return;
+    }
+
+    newRows.forEach((row) => {
+        const tableRow = document.createElement('tr');
+        Object.values(row).forEach((value) => {
+            const cell = document.createElement('td');
+            cell.textContent = value || ''; // Populate cell with value or empty string
+            tableRow.appendChild(cell);
+        });
+        tableBody.appendChild(tableRow);
+    });
+}
+
+
+function appendRowsToBusinessTable(rows) {
+    const tableBody = document.getElementById('queryResultBody');
+    const tableName = document.getElementById('tableSelect').value;
+    const currentDate = new Date().toISOString().split('T')[0]; // Get current date in yyyy-mm-dd format
+    const filePath = actualFilePath; // Use the global variable for file path
+
+    if (tableName !== "shua_businesses") {
+        alert("Please select the BUSINESS table before uploading.");
+        return;
+    }
+
+    const fields = tableFields[tableName];
+
+    // Start with the current number of rows in the table
+    let rowIndex = tableBody.rows.length;
+
+    rows.forEach((row) => {
+        const rowHtml = fields.map((field) => {
+            let cellValue = "";
+
+            if (field === "order_date") {
+                cellValue = currentDate;
+            } else if (field === "order_source") {
+                cellValue = filePath;
+            } else {
+                const xlsxField = Object.keys(columnMapping).find(
+                    (key) => columnMapping[key] === field
+                );
+                cellValue = xlsxField ? row[xlsxField] || "" : "";
+            }
+
+            return `<td><input type="text" value="${cellValue}" data-field="${field}" /></td>`;
+        }).join("");
+
+        const actionDropdown = `
+            <td>
+                <select class="action-select" data-row="${rowIndex}">
+                    <option value="">-- Select Action --</option>
+                    ${row[tableName === "accounts" ? "uid" : "bid"] ? `
+                        <option value="update">Update</option>
+                    ` : `
+                        <option value="add">Add This Row</option>
+                    `}
+                </select>
+            </td>
+        `;
+
+        const newRow = `<tr id="row-${rowIndex}">${rowHtml}${actionDropdown}</tr>`;
+        tableBody.innerHTML += newRow;
+
+        // Increment rowIndex for the next row
+        rowIndex++;
+    });
+
+    alert("Rows added successfully from the XLSX file!");
+}
+
+
+
+const columnMapping = {
+    "store": "order_seller",
+    "brand": "order_brand",
+    "execution time": "execution_time",
+    "quantity": "order_quantity",
+    "asin": "order_asin",
+    "search term": "order_search_term",
+    "title": "order_title",
+    "page number": "order_page_number",
+    "price": "order_price",
+    "variations": "variation",
+    "email": "order_contact",
+    "fb type": "order_feedback_type",
+    "fb title": "order_feedback_title",
+    "fb contents": "order_feedback_contents",
+};
+
+
+
+async function handleAction(selectElement, rowIndex) {
+    const action = selectElement.value;
+    const tableName = document.getElementById("tableSelect").value;
+    const rowInputs = document.querySelectorAll(`#row-${rowIndex} input`);
+    const rowData = {};
+
+    // Gather row data
+    rowInputs.forEach(input => {
+        const field = input.getAttribute("data-field");
+        rowData[field] = input.value || null; // Default empty fields to null
+    });
+
+    console.log(`Action selected: ${action} for row ${rowIndex}`);
+
+    if (action === "add") {
+        console.log("Adding new row for rowIndex:", rowIndex);
+        await addRow(rowData); // Call addRow for "Add This Row"
+    } else if (action === "update") {
+        console.log("Updating existing row:", rowIndex);
+        await saveRow(rowIndex); // Existing update functionality
+    } else {
+        // Show confirmation popup for account actions
+        if (tableName === 'accounts') {
+            const popup = document.getElementById('confirmation-popup');
+            const additionalInputs = document.getElementById('additional-inputs');
+            
+            // Clear previous inputs
+            additionalInputs.innerHTML = '';
+            
+            // Add specific inputs based on action
+            if (action === 'add_card_val' || action === 'create_card') {
+                additionalInputs.innerHTML = `
+                    <div>
+                        <label>Amount: <input type="number" id="additional-amount" min="10" step="0.01" /></label>
+                        <div id="amount-warning" style="color: red; display: none;">Amount must be at least $10</div>
+                    </div>
+                `;
+            } else if (action === 'create_ip') {
+                const lang = document.getElementById("languageSelect").value;
+                additionalInputs.innerHTML = `
+                    <div>
+                        <label>Location: 
+                            <select id="ip-location">
+                                ${Object.entries(translations[lang].locationOptions)
+                                    .map(([key, value]) => `<option value="${key}">${value}</option>`)
+                                    .join('')}
+                            </select>
+                        </label>
+                    </div>
+                `;
+            }
+            
+            currentActionData = { action, rowIndex };
+            popup.style.display = 'block';
+        }
+    }
+}
+
+
+</script>
+</body>
+</html>
